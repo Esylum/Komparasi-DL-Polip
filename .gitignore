@@ -1,0 +1,13 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Training artifacts are generated locally by unet.py and unet++.py.
+outputs/
+
+# Local virtual environments.
+.venv/
+venv/
+env/
+
