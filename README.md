@@ -76,6 +76,18 @@ outputs/unetplusplus/<timestamp>/
 
 Folder output berisi:
 
+- `01_visualisasi_resize_normalisasi.png`: contoh image asli, resize,
+  normalisasi, mask asli, dan binary mask.
+- `02_visualisasi_train_val_test.png`: contoh pasangan image-mask dari train,
+  validation, dan test.
+- `03_distribusi_train_val_test.png`: grafik jumlah data train/validation/test.
+- `04_hyperparameters.csv` dan `04_hyperparameters.json`: hyperparameter numerik
+  model, split data, optimizer, loss function, epoch, batch size, learning rate,
+  image size, dan base filters.
+- `<loss>/05_history_training.png`: grafik train loss, validation loss, Dice, dan
+  IoU per epoch untuk tiap loss function.
+- `06_performa_loss_function.png`: grafik perbandingan performa loss function
+  berdasarkan test set.
 - `best.weights.h5`
 - `last.weights.h5`
 - `history.csv`
@@ -88,6 +100,3 @@ Folder output berisi:
 `sessile-main-Kvasir-SEG` adalah subset dari `Kvasir-SEG`, bukan dataset tambahan
 yang sepenuhnya berbeda. Jika keduanya digabung mentah-mentah, 196 sampel bisa
 terduplikasi dan menyebabkan data leakage.
-
-# Komparasi-DL-Polip
-# Komparasi-DL-Polip

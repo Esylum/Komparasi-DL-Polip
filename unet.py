@@ -294,6 +294,167 @@ def save_prediction_samples(model, sample_pairs, image_size, out_dir, max_sample
         plt.close(fig)
 
 
+def read_original_image(path):
+    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise RuntimeError(f"Gagal membaca image: {path}")
+    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+
+def read_original_mask(path):
+    mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise RuntimeError(f"Gagal membaca mask: {path}")
+    return mask
+
+
+def losses_from_args(loss_arg):
+    if loss_arg == "all":
+        return list(LOSS_NAMES)
+    return [loss_arg.lower()]
+
+
+def save_preprocessing_visualization(pairs, image_size, out_dir, max_samples=3):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    selected = pairs[:max_samples]
+    fig, axes = plt.subplots(len(selected), 5, figsize=(15, 3 * len(selected)))
+    if len(selected) == 1:
+        axes = np.expand_dims(axes, axis=0)
+
+    for row, (image_path, mask_path) in enumerate(selected):
+        original_image = read_original_image(image_path)
+        original_mask = read_original_mask(mask_path)
+        resized_image = cv2.resize(
+            original_image, (image_size, image_size), interpolation=cv2.INTER_AREA
+        )
+        normalized_image = resized_image.astype(np.float32) / 255.0
+        binary_mask = read_mask(mask_path, image_size)[:, :, 0]
+
+        axes[row, 0].imshow(original_image)
+        axes[row, 0].set_title("Original Image")
+        axes[row, 1].imshow(resized_image)
+        axes[row, 1].set_title(f"Resize {image_size}x{image_size}")
+        axes[row, 2].imshow(normalized_image)
+        axes[row, 2].set_title("Normalisasi 0-1")
+        axes[row, 3].imshow(original_mask, cmap="gray")
+        axes[row, 3].set_title("Original Mask")
+        axes[row, 4].imshow(binary_mask, cmap="gray", vmin=0, vmax=1)
+        axes[row, 4].set_title("Binary Mask")
+
+        for col in range(5):
+            axes[row, col].axis("off")
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "01_visualisasi_resize_normalisasi.png", dpi=150)
+    plt.close(fig)
+
+
+def save_split_visualization(split_map, image_size, out_dir):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(3, 2, figsize=(8, 10))
+    for row, split_name in enumerate(["train", "val", "test"]):
+        image_path, mask_path = split_map[split_name][0]
+        image = read_image(image_path, image_size)
+        mask = read_mask(mask_path, image_size)[:, :, 0]
+
+        axes[row, 0].imshow(image)
+        axes[row, 0].set_title(f"{split_name.upper()} Image")
+        axes[row, 1].imshow(mask, cmap="gray", vmin=0, vmax=1)
+        axes[row, 1].set_title(f"{split_name.upper()} Mask")
+        axes[row, 0].axis("off")
+        axes[row, 1].axis("off")
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "02_visualisasi_train_val_test.png", dpi=150)
+    plt.close(fig)
+
+
+def save_split_distribution(split_counts, out_dir):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    names = list(split_counts.keys())
+    values = list(split_counts.values())
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    bars = ax.bar(names, values, color=["#2f6f9f", "#d97941", "#4f8f5f"])
+    ax.set_title("Distribusi Data Train, Validation, Test")
+    ax.set_ylabel("Jumlah data")
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value, str(value), ha="center", va="bottom")
+    fig.tight_layout()
+    fig.savefig(out_dir / "03_distribusi_train_val_test.png", dpi=150)
+    plt.close(fig)
+
+
+def save_hyperparameters(args, model_name, pairs, train_pairs, val_pairs, test_pairs, run_dir):
+    hyperparameters = {
+        "model": model_name,
+        "dataset": str(Path(args.dataset).resolve()),
+        "total_data": len(pairs),
+        "train_data": len(train_pairs),
+        "validation_data": len(val_pairs),
+        "test_data": len(test_pairs),
+        "split_train": 0.70,
+        "split_validation": 0.15,
+        "split_test": 0.15,
+        "image_size": args.image_size,
+        "batch_size": args.batch_size,
+        "epochs": args.epochs,
+        "learning_rate": args.learning_rate,
+        "base_filters": args.base_filters,
+        "optimizer": "Adam",
+        "output_activation": "sigmoid",
+        "mask_threshold": 127,
+        "prediction_threshold": 0.5,
+        "loss_functions": ",".join(losses_from_args(args.loss)),
+        "early_stopping_patience": args.patience,
+        "limited_data_for_test": args.limit,
+    }
+
+    with open(run_dir / "04_hyperparameters.json", "w", encoding="utf-8") as f:
+        json.dump(hyperparameters, f, indent=2)
+    pd.DataFrame([hyperparameters]).to_csv(run_dir / "04_hyperparameters.csv", index=False)
+    return hyperparameters
+
+
+def save_history_plot(history, loss_dir):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    axes[0].plot(history["epoch"], history["loss"], label="train loss")
+    axes[0].plot(history["epoch"], history["val_loss"], label="val loss")
+    axes[0].set_title("Loss Training")
+    axes[0].set_xlabel("Epoch")
+    axes[0].legend()
+
+    if {"dice", "val_dice", "iou", "val_iou"}.issubset(history.columns):
+        axes[1].plot(history["epoch"], history["dice"], label="train dice")
+        axes[1].plot(history["epoch"], history["val_dice"], label="val dice")
+        axes[1].plot(history["epoch"], history["iou"], label="train iou")
+        axes[1].plot(history["epoch"], history["val_iou"], label="val iou")
+    else:
+        axes[1].text(0.5, 0.5, "Metrik epoch tidak tersedia", ha="center", va="center")
+    axes[1].set_title("Dice dan IoU")
+    axes[1].set_xlabel("Epoch")
+    axes[1].legend()
+
+    fig.tight_layout()
+    fig.savefig(loss_dir / "05_history_training.png", dpi=150)
+    plt.close(fig)
+
+
+def save_performance_plot(summary_df, run_dir):
+    metrics = ["accuracy", "precision", "recall", "dice", "iou"]
+    plot_df = summary_df.set_index("loss_name")[metrics]
+
+    ax = plot_df.plot(kind="bar", figsize=(10, 5), ylim=(0, 1))
+    ax.set_title("Performa Loss Function pada Test Set")
+    ax.set_xlabel("Loss Function")
+    ax.set_ylabel("Score")
+    ax.legend(loc="lower right")
+    plt.xticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig(run_dir / "06_performa_loss_function.png", dpi=150)
+    plt.close()
+
+
 def iterate_batches(images, masks, batch_size, shuffle):
     indices = np.arange(len(images))
     if shuffle:
@@ -423,10 +584,7 @@ def main():
     args = parse_args()
     set_seed(args.seed)
 
-    if args.loss == "all":
-        losses = list(LOSS_NAMES)
-    else:
-        losses = [args.loss.lower()]
+    losses = losses_from_args(args.loss)
     invalid = [name for name in losses if name not in LOSS_NAMES]
     if invalid:
         raise ValueError(f"Loss tidak valid: {invalid}. Pilih dari {LOSS_NAMES}.")
@@ -466,6 +624,14 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_rows = []
 
+    split_map = {"train": train_pairs, "val": val_pairs, "test": test_pairs}
+    split_counts = {
+        "train": len(train_pairs),
+        "validation": len(val_pairs),
+        "test": len(test_pairs),
+    }
+    print("\nOutput akan disimpan setelah training selesai.")
+
     for index, loss_name in enumerate(losses, start=1):
         print(f"\n[2/4] Training UNet dengan {loss_name.upper()} ({index}/{len(losses)})")
         loss_dir = run_dir / loss_name
@@ -484,6 +650,7 @@ def main():
         )
         print("  - Training selesai")
         history.to_csv(loss_dir / "history_final.csv", index=False)
+        save_history_plot(history, loss_dir)
 
         print(f"\n[3/4] Evaluasi test set untuk loss {loss_name.upper()}...")
         metrics = evaluate_predictions(model, x_test, y_test, args.batch_size)
@@ -520,7 +687,18 @@ def main():
     summary_df = pd.DataFrame(summary_rows)
     metric_cols = ["loss_name", "accuracy", "precision", "recall", "dice", "iou"]
     summary_df[metric_cols].to_csv(run_dir / "summary_metrics.csv", index=False)
+    save_hyperparameters(args, "UNet", pairs, train_pairs, val_pairs, test_pairs, run_dir)
+    save_preprocessing_visualization(pairs, args.image_size, run_dir)
+    save_split_visualization(split_map, args.image_size, run_dir)
+    save_split_distribution(split_counts, run_dir)
+    save_performance_plot(summary_df, run_dir)
     print(summary_df[metric_cols].sort_values("dice", ascending=False).to_string(index=False))
+    print("\nOutput visual:")
+    print(f"Preprocessing        : {run_dir / '01_visualisasi_resize_normalisasi.png'}")
+    print(f"Train/val/test       : {run_dir / '02_visualisasi_train_val_test.png'}")
+    print(f"Distribusi split     : {run_dir / '03_distribusi_train_val_test.png'}")
+    print(f"Hyperparameter       : {run_dir / '04_hyperparameters.csv'}")
+    print(f"Grafik performa loss : {run_dir / '06_performa_loss_function.png'}")
     print(f"\nSemua output tersimpan di: {run_dir.resolve()}")
 
 
