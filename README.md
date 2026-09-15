@@ -70,8 +70,8 @@ python3 'unet++.py' --loss all --epochs 30 --image-size 224 --batch-size 8 --bas
 Hasil training tersimpan di folder `outputs/`, misalnya:
 
 ```text
-outputs/unet/<timestamp>/
-outputs/unetplusplus/<timestamp>/
+outputs/unet/hasil-unet-2026-09-15_18-09-45/
+outputs/unetplusplus/hasil-unetplusplus-2026-09-11_23-11-33/
 ```
 
 Folder output berisi:

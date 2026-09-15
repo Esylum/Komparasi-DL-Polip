@@ -311,6 +311,11 @@ def losses_from_args(loss_arg):
     return [loss_arg.lower()]
 
 
+def make_run_dir(output_dir, model_slug):
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return Path(output_dir) / f"hasil-{model_slug}-{timestamp}"
+
+
 def save_preprocessing_visualization(pairs, image_size, out_dir, max_samples=3):
     out_dir.mkdir(parents=True, exist_ok=True)
     selected = pairs[:max_samples]
@@ -617,7 +622,7 @@ def main():
     print(f"Val arrays           : X{x_val.shape} y{y_val.shape}")
     print(f"Test arrays          : X{x_test.shape} y{y_test.shape}")
 
-    run_dir = Path(args.output_dir) / datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_dir = make_run_dir(args.output_dir, "unetplusplus")
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_rows = []
 
