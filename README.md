@@ -61,14 +61,6 @@ docker compose run --rm polyp
 Build pertama bisa lama karena Docker mengunduh Python, TensorFlow, dan library
 pendukung. Setelah itu run berikutnya biasanya lebih cepat.
 
-Untuk client Windows, bisa juga langsung jalankan file:
-
-```text
-run_smoke_test.bat
-run_unet_full.bat
-run_unetplusplus_full.bat
-```
-
 Jalankan UNet lengkap:
 
 ```bash
