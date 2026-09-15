@@ -1,36 +1,3 @@
-import os as _boot_os
-import sys as _boot_sys
-
-if __name__ == "__main__" and _boot_os.environ.get("UNET_BOOTSTRAPPED") != "1":
-    _boot_os.environ["UNET_BOOTSTRAPPED"] = "1"
-    _boot_os.environ["UNET_ENTRY_FILE"] = __file__
-    _boot_code = """
-import importlib.util, os, sys, traceback
-path = os.environ["UNET_ENTRY_FILE"]
-spec = importlib.util.spec_from_file_location("unet", path)
-runtime = importlib.util.module_from_spec(spec)
-sys.modules["unet"] = runtime
-spec.loader.exec_module(runtime)
-try:
-    runtime.main()
-except Exception:
-    traceback.print_exc()
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(1)
-else:
-    runtime.tf.keras.backend.clear_session()
-    runtime.plt.close("all")
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(0)
-"""
-    _boot_os.execvpe(
-        _boot_sys.executable,
-        [_boot_sys.executable, "-u", "-c", _boot_code] + _boot_sys.argv[1:],
-        _boot_os.environ,
-    )
-
 import argparse
 import json
 import os
@@ -703,19 +670,16 @@ def main():
 
 
 if __name__ == "__main__":
-    import importlib
-
     try:
-        runtime = importlib.import_module("unet")
-        runtime.main()
+        main()
     except Exception:
         traceback.print_exc()
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(1)
     else:
-        runtime.tf.keras.backend.clear_session()
-        runtime.plt.close("all")
+        tf.keras.backend.clear_session()
+        plt.close("all")
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0)
