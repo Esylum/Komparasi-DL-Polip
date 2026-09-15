@@ -1,0 +1,26 @@
+services:
+  polyp:
+    build: .
+    platform: linux/amd64
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      MPLBACKEND: Agg
+      TF_CPP_MIN_LOG_LEVEL: "2"
+    command:
+      - python
+      - unet.py
+      - --loss
+      - jaccard
+      - --epochs
+      - "1"
+      - --limit
+      - "4"
+      - --image-size
+      - "32"
+      - --batch-size
+      - "1"
+      - --base-filters
+      - "4"

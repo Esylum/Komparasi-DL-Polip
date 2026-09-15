@@ -47,6 +47,44 @@ Output evaluasi yang dihitung:
 
 ## Cara Menjalankan
 
+### Opsi 1: Docker
+
+Cara ini paling gampang untuk laptop client karena dependency Python dan
+TensorFlow dipasang di dalam container.
+
+Install Docker Desktop, lalu dari folder project jalankan smoke test:
+
+```bash
+docker compose run --rm polyp
+```
+
+Build pertama bisa lama karena Docker mengunduh Python, TensorFlow, dan library
+pendukung. Setelah itu run berikutnya biasanya lebih cepat.
+
+Untuk client Windows, bisa juga langsung jalankan file:
+
+```text
+run_smoke_test.bat
+run_unet_full.bat
+run_unetplusplus_full.bat
+```
+
+Jalankan UNet lengkap:
+
+```bash
+docker compose run --rm polyp python unet.py --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
+```
+
+Jalankan UNet++ lengkap:
+
+```bash
+docker compose run --rm polyp python "unet++.py" --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
+```
+
+Hasilnya tetap masuk ke folder `outputs/` di project lokal.
+
+### Opsi 2: Install Manual
+
 Install dependency:
 
 ```bash
