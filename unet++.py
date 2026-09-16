@@ -15,6 +15,13 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+except RuntimeError:
+    pass
+
+
 LOSS_NAMES = ("jaccard", "tversky", "mse", "mae")
 
 
@@ -311,9 +318,23 @@ def losses_from_args(loss_arg):
     return [loss_arg.lower()]
 
 
-def make_run_dir(output_dir, model_slug):
+def slugify_name(value):
+    slug = []
+    last_dash = False
+    for char in str(value).lower():
+        if char.isalnum():
+            slug.append(char)
+            last_dash = False
+        elif not last_dash:
+            slug.append("-")
+            last_dash = True
+    return "".join(slug).strip("-") or "dataset"
+
+
+def make_run_dir(output_dir, model_slug, dataset_path):
+    dataset_slug = slugify_name(Path(dataset_path).name)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return Path(output_dir) / f"hasil-{model_slug}-{timestamp}"
+    return Path(output_dir) / f"hasil-{model_slug}-{dataset_slug}-{timestamp}"
 
 
 def save_preprocessing_visualization(pairs, image_size, out_dir, max_samples=3):
@@ -622,7 +643,7 @@ def main():
     print(f"Val arrays           : X{x_val.shape} y{y_val.shape}")
     print(f"Test arrays          : X{x_test.shape} y{y_test.shape}")
 
-    run_dir = make_run_dir(args.output_dir, "unetplusplus")
+    run_dir = make_run_dir(args.output_dir, "unetplusplus", args.dataset)
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_rows = []
 

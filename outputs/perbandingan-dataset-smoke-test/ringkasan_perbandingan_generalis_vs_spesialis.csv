@@ -1,0 +1,5 @@
+dataset_role,dataset_name,model,loss_name,accuracy,precision,recall,dice,iou,total_data,train_data,validation_data,test_data,run_dir
+generalis,Kvasir-SEG,UNet,jaccard,0.6855468743305205,0.0304347824763705,0.0660377352260591,0.0416666665426587,0.0212765956800103,4,2,1,1,outputs/perbandingan-dataset-smoke-test/generalis/unet/hasil-unet-kvasir-seg-2026-09-17_02-12-55
+generalis,Kvasir-SEG,UNet++,jaccard,0.6562499993591308,0.0607142854974489,0.1603773569775721,0.0880829013262101,0.0460704605797548,4,2,1,1,outputs/perbandingan-dataset-smoke-test/generalis/unetplusplus/hasil-unetplusplus-kvasir-seg-2026-09-17_02-13-00
+spesialis,sessile-main-Kvasir-SEG,UNet,jaccard,0.7275390617895126,0.124444443891358,0.254545452231405,0.16716417860548,0.0912052114292989,4,2,1,1,outputs/perbandingan-dataset-smoke-test/spesialis/unet/hasil-unet-sessile-main-kvasir-seg-2026-09-17_02-13-05
+spesialis,sessile-main-Kvasir-SEG,UNet++,jaccard,0.7080078118085861,0.1142857138192419,0.254545452231405,0.1577464784288831,0.0856269110531287,4,2,1,1,outputs/perbandingan-dataset-smoke-test/spesialis/unetplusplus/hasil-unetplusplus-sessile-main-kvasir-seg-2026-09-17_02-13-09

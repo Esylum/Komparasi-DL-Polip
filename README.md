@@ -73,6 +73,12 @@ Jalankan UNet++ lengkap:
 docker compose run --rm polyp python "unet++.py" --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
 ```
 
+Jalankan perbandingan dataset generalis vs spesialis:
+
+```bash
+docker compose run --rm polyp python compare_datasets.py --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
+```
+
 Hasilnya tetap masuk ke folder `outputs/` di project lokal.
 
 ### Opsi 2: Install Manual
@@ -95,6 +101,18 @@ Eksperimen penuh:
 ```bash
 python3 unet.py --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
 python3 'unet++.py' --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
+```
+
+Perbandingan dataset generalis vs spesialis:
+
+```bash
+python3 compare_datasets.py --loss all --epochs 30 --image-size 224 --batch-size 8 --base-filters 16
+```
+
+Smoke test cepat perbandingan dataset:
+
+```bash
+python3 compare_datasets.py --smoke-test
 ```
 
 Hasil training tersimpan di folder `outputs/`, misalnya:
@@ -124,6 +142,19 @@ Folder output berisi:
 - `metrics.json`
 - `summary_metrics.csv`
 - `predictions/*.png`
+
+Output khusus perbandingan dataset tersimpan di:
+
+```text
+outputs/perbandingan-dataset/
+```
+
+Isinya:
+
+- `ringkasan_dataset.csv`: jumlah data generalis dan spesialis.
+- `ringkasan_perbandingan_generalis_vs_spesialis.csv`: tabel perbandingan
+  performa dataset, model, dan loss function.
+- `grafik_perbandingan_generalis_vs_spesialis.png`: grafik Dice dan IoU.
 
 ## Catatan Penting
 

@@ -1,0 +1,3 @@
+dataset_role,dataset_name,total_pairs,catatan
+generalis,Kvasir-SEG,1000,dataset utama
+spesialis,sessile-main-Kvasir-SEG,196,subset polip sessile
