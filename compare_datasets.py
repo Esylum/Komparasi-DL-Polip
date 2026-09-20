@@ -59,11 +59,11 @@ def load_model_module(model_key):
     return module
 
 
-def build_model(module, model_key, input_shape, base_filters):
+def build_model(module, model_key, input_shape, base_filters, dropout_rate, l2_weight):
     if model_key == "unet":
-        return module.build_unet(input_shape, base_filters)
+        return module.build_unet(input_shape, base_filters, dropout_rate, l2_weight)
     if model_key == "unetplusplus":
-        return module.build_unet_plus_plus(input_shape, base_filters)
+        return module.build_unet_plus_plus(input_shape, base_filters, dropout_rate, l2_weight)
     raise ValueError(f"Model tidak dikenal: {model_key}")
 
 
@@ -81,6 +81,8 @@ def run_experiment(args, dataset_role, dataset_dir, model_key):
     print(f"Dataset      : {dataset_dir}")
     print(f"Model        : {model_name}")
     print(f"Loss         : {args.loss}")
+    print(f"Augmentasi   : {'aktif' if args.augment else 'nonaktif'}")
+    print(f"Dropout / L2 : {args.dropout} / {args.l2}")
 
     module.set_seed(args.seed)
     losses = module.losses_from_args(args.loss)
@@ -120,7 +122,14 @@ def run_experiment(args, dataset_role, dataset_dir, model_key):
         print(f"\nTraining {model_name} - {dataset_role} - {loss_name.upper()} ({index}/{len(losses)})")
         loss_dir = run_dir / loss_name
         loss_dir.mkdir(parents=True, exist_ok=True)
-        model = build_model(module, model_key, (args.image_size, args.image_size, 3), args.base_filters)
+        model = build_model(
+            module,
+            model_key,
+            (args.image_size, args.image_size, 3),
+            args.base_filters,
+            args.dropout,
+            args.l2,
+        )
         print(f"Total parameter model: {model.count_params():,}")
         optimizer = module.tf.keras.optimizers.Adam(learning_rate=args.learning_rate)
         loss_fn = module.get_loss(loss_name)
@@ -138,6 +147,10 @@ def run_experiment(args, dataset_role, dataset_dir, model_key):
         history.to_csv(loss_dir / "history_final.csv", index=False)
         module.save_history_plot(history, loss_dir)
 
+        best_weights_path = loss_dir / "best.weights.h5"
+        if best_weights_path.exists():
+            model.load_weights(best_weights_path)
+            print("Memakai best weights berdasarkan validation Dice untuk evaluasi test.")
         metrics = module.evaluate_predictions(model, x_test, y_test, args.batch_size)
         metrics["loss_name"] = loss_name
         summary_rows.append(metrics)
@@ -209,6 +222,11 @@ def run_isolated_experiment(args, dataset_role, dataset_dir, model_key):
         str(args.seed),
         "--patience",
         str(args.patience),
+        "--augment" if args.augment else "--no-augment",
+        "--dropout",
+        str(args.dropout),
+        "--l2",
+        str(args.l2),
         "--save-samples",
         str(args.save_samples),
         "--limit",
@@ -297,6 +315,24 @@ def parse_args():
     parser.add_argument("--base-filters", type=int, default=16)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--patience", type=int, default=8)
+    parser.add_argument(
+        "--augment",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Aktifkan augmentasi train untuk mengurangi overfitting.",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.15,
+        help="Spatial dropout pada conv block. 0 berarti nonaktif.",
+    )
+    parser.add_argument(
+        "--l2",
+        type=float,
+        default=1e-5,
+        help="Bobot L2 regularization pada convolution layer. 0 berarti nonaktif.",
+    )
     parser.add_argument("--save-samples", type=int, default=5)
     parser.add_argument("--limit", type=int, default=0, help="0 berarti pakai seluruh data.")
     parser.add_argument("--verbose-batches", action="store_true")
@@ -337,6 +373,9 @@ def main():
         args.image_size = 32
         args.batch_size = 1
         args.base_filters = 4
+        args.augment = True
+        args.dropout = 0.15
+        args.l2 = 1e-5
         args.save_samples = 1
         args.output_root = Path("outputs/perbandingan-dataset-smoke-test")
 

@@ -1,0 +1,2 @@
+model,dataset,total_data,train_data,validation_data,test_data,split_train,split_validation,split_test,image_size,batch_size,epochs,learning_rate,base_filters,optimizer,output_activation,mask_threshold,prediction_threshold,loss_functions,early_stopping_patience,augmentation_enabled,dropout,l2_regularization,test_uses_best_weights,limited_data_for_test
+UNet,/Users/sergiodyegogmail.com/Documents/biomedis-unair/sessile-main-Kvasir-SEG,4,2,1,1,0.7,0.15,0.15,32,1,1,0.0001,4,Adam,sigmoid,127,0.5,jaccard,8,True,0.15,1e-05,True,4

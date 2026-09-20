@@ -76,19 +76,60 @@ def load_arrays(pairs, image_size):
     return images, masks
 
 
-def conv_block(inputs, filters):
-    x = tf.keras.layers.Conv2D(filters, 3, padding="same", activation="relu")(inputs)
-    x = tf.keras.layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
+def augment_batch(images, masks):
+    aug_images = images.copy()
+    aug_masks = masks.copy()
+    if np.random.rand() < 0.5:
+        aug_images = np.flip(aug_images, axis=2)
+        aug_masks = np.flip(aug_masks, axis=2)
+    if np.random.rand() < 0.5:
+        aug_images = np.flip(aug_images, axis=1)
+        aug_masks = np.flip(aug_masks, axis=1)
+    k = np.random.randint(0, 4)
+    if k:
+        aug_images = np.rot90(aug_images, k=k, axes=(1, 2))
+        aug_masks = np.rot90(aug_masks, k=k, axes=(1, 2))
+    if np.random.rand() < 0.5:
+        factor = np.random.uniform(0.85, 1.15)
+        aug_images = np.clip(aug_images * factor, 0.0, 1.0)
+    return aug_images.copy(), aug_masks.copy()
+
+
+def conv_block(inputs, filters, dropout_rate=0.0, l2_weight=0.0):
+    regularizer = tf.keras.regularizers.l2(l2_weight) if l2_weight > 0 else None
+    x = tf.keras.layers.Conv2D(
+        filters,
+        3,
+        padding="same",
+        use_bias=False,
+        kernel_regularizer=regularizer,
+    )(inputs)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.ReLU()(x)
+    x = tf.keras.layers.Conv2D(
+        filters,
+        3,
+        padding="same",
+        use_bias=False,
+        kernel_regularizer=regularizer,
+    )(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.ReLU()(x)
+    if dropout_rate > 0:
+        x = tf.keras.layers.SpatialDropout2D(dropout_rate)(x)
     return x
 
 
-def upsample_like(inputs, filters):
+def upsample_like(inputs, filters, l2_weight=0.0):
+    regularizer = tf.keras.regularizers.l2(l2_weight) if l2_weight > 0 else None
     x = tf.keras.layers.UpSampling2D(interpolation="bilinear")(inputs)
-    x = tf.keras.layers.Conv2D(filters, 2, padding="same")(x)
+    x = tf.keras.layers.Conv2D(
+        filters, 2, padding="same", kernel_regularizer=regularizer
+    )(x)
     return x
 
 
-def build_unet_plus_plus(input_shape, base_filters):
+def build_unet_plus_plus(input_shape, base_filters, dropout_rate=0.0, l2_weight=0.0):
     inputs = tf.keras.Input(input_shape)
     filters = [
         base_filters,
@@ -98,59 +139,86 @@ def build_unet_plus_plus(input_shape, base_filters):
         base_filters * 16,
     ]
 
-    x00 = conv_block(inputs, filters[0])
-    x10 = conv_block(tf.keras.layers.MaxPooling2D()(x00), filters[1])
-    x20 = conv_block(tf.keras.layers.MaxPooling2D()(x10), filters[2])
-    x30 = conv_block(tf.keras.layers.MaxPooling2D()(x20), filters[3])
-    x40 = conv_block(tf.keras.layers.MaxPooling2D()(x30), filters[4])
+    x00 = conv_block(inputs, filters[0], dropout_rate, l2_weight)
+    x10 = conv_block(tf.keras.layers.MaxPooling2D()(x00), filters[1], dropout_rate, l2_weight)
+    x20 = conv_block(tf.keras.layers.MaxPooling2D()(x10), filters[2], dropout_rate, l2_weight)
+    x30 = conv_block(tf.keras.layers.MaxPooling2D()(x20), filters[3], dropout_rate, l2_weight)
+    x40 = conv_block(tf.keras.layers.MaxPooling2D()(x30), filters[4], dropout_rate, l2_weight)
 
     x01 = conv_block(
-        tf.keras.layers.Concatenate()([x00, upsample_like(x10, filters[0])]),
+        tf.keras.layers.Concatenate()([x00, upsample_like(x10, filters[0], l2_weight)]),
         filters[0],
+        dropout_rate,
+        l2_weight,
     )
     x11 = conv_block(
-        tf.keras.layers.Concatenate()([x10, upsample_like(x20, filters[1])]),
+        tf.keras.layers.Concatenate()([x10, upsample_like(x20, filters[1], l2_weight)]),
         filters[1],
+        dropout_rate,
+        l2_weight,
     )
     x21 = conv_block(
-        tf.keras.layers.Concatenate()([x20, upsample_like(x30, filters[2])]),
+        tf.keras.layers.Concatenate()([x20, upsample_like(x30, filters[2], l2_weight)]),
         filters[2],
+        dropout_rate,
+        l2_weight,
     )
     x31 = conv_block(
-        tf.keras.layers.Concatenate()([x30, upsample_like(x40, filters[3])]),
+        tf.keras.layers.Concatenate()([x30, upsample_like(x40, filters[3], l2_weight)]),
         filters[3],
+        dropout_rate,
+        l2_weight,
     )
 
     x02 = conv_block(
-        tf.keras.layers.Concatenate()([x00, x01, upsample_like(x11, filters[0])]),
+        tf.keras.layers.Concatenate()([x00, x01, upsample_like(x11, filters[0], l2_weight)]),
         filters[0],
+        dropout_rate,
+        l2_weight,
     )
     x12 = conv_block(
-        tf.keras.layers.Concatenate()([x10, x11, upsample_like(x21, filters[1])]),
+        tf.keras.layers.Concatenate()([x10, x11, upsample_like(x21, filters[1], l2_weight)]),
         filters[1],
+        dropout_rate,
+        l2_weight,
     )
     x22 = conv_block(
-        tf.keras.layers.Concatenate()([x20, x21, upsample_like(x31, filters[2])]),
+        tf.keras.layers.Concatenate()([x20, x21, upsample_like(x31, filters[2], l2_weight)]),
         filters[2],
+        dropout_rate,
+        l2_weight,
     )
 
     x03 = conv_block(
-        tf.keras.layers.Concatenate()([x00, x01, x02, upsample_like(x12, filters[0])]),
+        tf.keras.layers.Concatenate()(
+            [x00, x01, x02, upsample_like(x12, filters[0], l2_weight)]
+        ),
         filters[0],
+        dropout_rate,
+        l2_weight,
     )
     x13 = conv_block(
-        tf.keras.layers.Concatenate()([x10, x11, x12, upsample_like(x22, filters[1])]),
+        tf.keras.layers.Concatenate()(
+            [x10, x11, x12, upsample_like(x22, filters[1], l2_weight)]
+        ),
         filters[1],
+        dropout_rate,
+        l2_weight,
     )
 
     x04 = conv_block(
         tf.keras.layers.Concatenate()(
-            [x00, x01, x02, x03, upsample_like(x13, filters[0])]
+            [x00, x01, x02, x03, upsample_like(x13, filters[0], l2_weight)]
         ),
         filters[0],
+        dropout_rate,
+        l2_weight,
     )
 
-    outputs = tf.keras.layers.Conv2D(1, 1, activation="sigmoid")(x04)
+    regularizer = tf.keras.regularizers.l2(l2_weight) if l2_weight > 0 else None
+    outputs = tf.keras.layers.Conv2D(
+        1, 1, activation="sigmoid", kernel_regularizer=regularizer
+    )(x04)
     return tf.keras.Model(inputs, outputs, name="UNetPlusPlus")
 
 
@@ -430,6 +498,10 @@ def save_hyperparameters(args, model_name, pairs, train_pairs, val_pairs, test_p
         "prediction_threshold": 0.5,
         "loss_functions": ",".join(losses_from_args(args.loss)),
         "early_stopping_patience": args.patience,
+        "augmentation_enabled": args.augment,
+        "dropout": args.dropout,
+        "l2_regularization": args.l2,
+        "test_uses_best_weights": True,
         "limited_data_for_test": args.limit,
     }
 
@@ -503,11 +575,15 @@ def run_training_loop(model, loss_fn, optimizer, x_train, y_train, x_val, y_val,
         ):
             if args.verbose_batches:
                 print(f"      train batch {batch_index}/{train_batch_count}: forward/backward...")
+            if args.augment:
+                xb, yb = augment_batch(xb, yb)
             xb = tf.convert_to_tensor(xb, dtype=tf.float32)
             yb = tf.convert_to_tensor(yb, dtype=tf.float32)
             with tf.GradientTape() as tape:
                 pred = model(xb, training=True)
                 loss_value = loss_fn(yb, pred)
+                if model.losses:
+                    loss_value = loss_value + tf.add_n(model.losses)
             grads = tape.gradient(loss_value, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
             logs = {"loss": float(loss_value)}
@@ -599,6 +675,24 @@ def parse_args():
     parser.add_argument("--output-dir", default="outputs/unetplusplus")
     parser.add_argument("--save-samples", type=int, default=5)
     parser.add_argument("--patience", type=int, default=8)
+    parser.add_argument(
+        "--augment",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Aktifkan augmentasi train untuk mengurangi overfitting.",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.15,
+        help="Spatial dropout pada conv block. 0 berarti nonaktif.",
+    )
+    parser.add_argument(
+        "--l2",
+        type=float,
+        default=1e-5,
+        help="Bobot L2 regularization pada convolution layer. 0 berarti nonaktif.",
+    )
     parser.add_argument("--verbose-batches", action="store_true")
     return parser.parse_args()
 
@@ -632,6 +726,8 @@ def main():
     print(f"Epoch                : {args.epochs}")
     print(f"Learning rate        : {args.learning_rate}")
     print(f"Base filters         : {args.base_filters}")
+    print(f"Augmentasi train     : {'aktif' if args.augment else 'nonaktif'}")
+    print(f"Dropout / L2         : {args.dropout} / {args.l2}")
     print(f"Loss yang diuji      : {', '.join(losses)}")
     print("Catatan mask         : grayscale -> threshold > 127 -> biner 0/1")
 
@@ -662,7 +758,10 @@ def main():
 
         print("  - Membangun arsitektur model...")
         model = build_unet_plus_plus(
-            (args.image_size, args.image_size, 3), args.base_filters
+            (args.image_size, args.image_size, 3),
+            args.base_filters,
+            args.dropout,
+            args.l2,
         )
         print(f"  - Total parameter model: {model.count_params():,}")
         print("  - Menyiapkan optimizer, loss, dan metrik manual...")
@@ -678,6 +777,10 @@ def main():
         save_history_plot(history, loss_dir)
 
         print(f"\n[3/4] Evaluasi test set untuk loss {loss_name.upper()}...")
+        best_weights_path = loss_dir / "best.weights.h5"
+        if best_weights_path.exists():
+            model.load_weights(best_weights_path)
+            print("  - Memakai best weights berdasarkan validation Dice")
         metrics = evaluate_predictions(model, x_test, y_test, args.batch_size)
         metrics["loss_name"] = loss_name
         summary_rows.append(metrics)

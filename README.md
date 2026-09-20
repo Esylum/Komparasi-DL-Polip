@@ -115,6 +115,26 @@ Smoke test cepat perbandingan dataset:
 python3 compare_datasets.py --smoke-test
 ```
 
+## Pencegahan Overfitting
+
+Secara default script sekarang memakai beberapa teknik untuk mengurangi
+overfitting:
+
+- augmentasi data train: flip horizontal, flip vertical, rotasi 90 derajat, dan
+  variasi brightness ringan.
+- `SpatialDropout2D` dengan default `--dropout 0.15`.
+- L2 regularization pada convolution layer dengan default `--l2 1e-5`.
+- early stopping berdasarkan validation Dice.
+- evaluasi test memakai `best.weights.h5`, yaitu bobot terbaik dari validation
+  Dice, bukan bobot epoch terakhir.
+
+Kalau mau eksperimen tanpa regularisasi untuk pembanding, jalankan:
+
+```bash
+python3 unet.py --loss jaccard --epochs 30 --no-augment --dropout 0 --l2 0
+python3 'unet++.py' --loss jaccard --epochs 30 --no-augment --dropout 0 --l2 0
+```
+
 Hasil training tersimpan di folder `outputs/`, misalnya:
 
 ```text
