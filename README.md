@@ -28,12 +28,11 @@ Mask dipakai sebagai ground truth untuk tugas semantic segmentation:
 
 ## Loss Function
 
-Script mendukung empat loss function:
+Script mendukung tiga loss function:
 
 - Jaccard Loss
 - Tversky Loss
-- Mean Squared Error (MSE)
-- Mean Absolute Error (MAE)
+- Dice + Binary Cross Entropy (DiceBCE, `--loss dice_bce`)
 
 ## Metrik Evaluasi
 
@@ -124,7 +123,7 @@ overfitting:
   variasi brightness ringan.
 - `SpatialDropout2D` dengan default `--dropout 0.15`.
 - L2 regularization pada convolution layer dengan default `--l2 1e-5`.
-- early stopping berdasarkan validation Dice.
+- training berjalan sampai jumlah epoch yang ditentukan; bobot terbaik berdasarkan validation Dice tetap disimpan.
 - evaluasi test memakai `best.weights.h5`, yaitu bobot terbaik dari validation
   Dice, bukan bobot epoch terakhir.
 

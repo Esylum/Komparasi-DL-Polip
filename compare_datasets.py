@@ -307,7 +307,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Menjalankan perbandingan dataset generalis Kvasir-SEG dan dataset spesialis sessile."
     )
-    parser.add_argument("--loss", default="all", help="Loss: all, jaccard, tversky, mse, atau mae.")
+    parser.add_argument("--loss", default="all", help="Loss: all, jaccard, tversky, atau dice_bce.")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--image-size", type=int, default=224)

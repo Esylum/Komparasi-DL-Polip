@@ -22,7 +22,7 @@ except RuntimeError:
     pass
 
 
-LOSS_NAMES = ("jaccard", "tversky", "mse", "mae")
+LOSS_NAMES = ("jaccard", "tversky", "dice_bce")
 
 
 def set_seed(seed):
@@ -280,15 +280,27 @@ def tversky_loss(y_true, y_pred, alpha=0.3, beta=0.7, smooth=1e-6):
     return 1.0 - tversky
 
 
+def dice_bce_loss(y_true, y_pred, smooth=1e-6):
+    y_true, y_pred = flatten_binary(y_true, y_pred)
+    y_pred_clipped = tf.clip_by_value(y_pred, 1e-7, 1.0 - 1e-7)
+    bce = -tf.reduce_mean(
+        y_true * tf.math.log(y_pred_clipped)
+        + (1.0 - y_true) * tf.math.log(1.0 - y_pred_clipped)
+    )
+    intersection = tf.reduce_sum(y_true * y_pred)
+    dice = (2.0 * intersection + smooth) / (
+        tf.reduce_sum(y_true) + tf.reduce_sum(y_pred) + smooth
+    )
+    return bce + (1.0 - dice)
+
+
 def get_loss(name):
     if name == "jaccard":
         return jaccard_loss
     if name == "tversky":
         return tversky_loss
-    if name == "mse":
-        return tf.keras.losses.MeanSquaredError()
-    if name == "mae":
-        return tf.keras.losses.MeanAbsoluteError()
+    if name == "dice_bce":
+        return dice_bce_loss
     raise ValueError(f"Loss tidak dikenal: {name}")
 
 
@@ -497,7 +509,8 @@ def save_hyperparameters(args, model_name, pairs, train_pairs, val_pairs, test_p
         "mask_threshold": 127,
         "prediction_threshold": 0.5,
         "loss_functions": ",".join(losses_from_args(args.loss)),
-        "early_stopping_patience": args.patience,
+        "early_stopping_patience": None,
+        "early_stopping_enabled": False,
         "augmentation_enabled": args.augment,
         "dropout": args.dropout,
         "l2_regularization": args.l2,
@@ -622,8 +635,7 @@ def run_training_loop(model, loss_fn, optimizer, x_train, y_train, x_val, y_val,
             model.save_weights(loss_dir / "best.weights.h5")
             checkpoint_text = "best saved"
         else:
-            wait += 1
-            checkpoint_text = f"no improve ({wait}/{args.patience})"
+            checkpoint_text = "no improve"
 
         print(
             f"Epoch {epoch:03d}/{args.epochs} - "
@@ -635,10 +647,6 @@ def run_training_loop(model, loss_fn, optimizer, x_train, y_train, x_val, y_val,
             f"val_iou={row.get('val_iou', 0):.4f} - "
             f"{checkpoint_text}"
         )
-
-        if wait >= args.patience:
-            print(f"Early stopping aktif pada epoch {epoch}.")
-            break
 
     history = pd.DataFrame(history_rows)
     history.to_csv(loss_dir / "history.csv", index=False)
@@ -653,7 +661,7 @@ def parse_args():
     parser.add_argument(
         "--loss",
         default="all",
-        help="Loss: all, jaccard, tversky, mse, atau mae.",
+        help="Loss: all, jaccard, tversky, atau dice_bce.",
     )
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=8)

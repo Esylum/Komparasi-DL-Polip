@@ -392,37 +392,37 @@ Maknanya:
 Model lebih dihukum ketika melewatkan area polip asli.
 ```
 
-## 16. Mean Squared Error
+## 16. Dice + Binary Cross Entropy (DiceBCE) Loss
 
-MSE menghitung rata-rata kuadrat selisih antara mask asli dan prediksi.
+DiceBCE menggabungkan Binary Cross Entropy (akurasi per piksel) dengan Dice Loss
+(kemiripan bentuk/overlap mask).
 
-Rumus:
+Binary Cross Entropy:
 
 ```text
-MSE = (1 / n) x sum((Y_true - Y_pred)^2)
+BCE = -(1 / n) x sum(Y_true x log(Y_pred) + (1 - Y_true) x log(1 - Y_pred))
+```
+
+Dice Loss:
+
+```text
+Dice Loss = 1 - ((2 x intersection + smooth) / (sum(Y_true) + sum(Y_pred) + smooth))
+```
+
+DiceBCE Loss:
+
+```text
+DiceBCE Loss = BCE + Dice Loss
 ```
 
 Keterangan:
 
 - `n` adalah jumlah piksel
+- `Y_pred` di-clip ke rentang `[1e-7, 1 - 1e-7]` agar `log` tidak bernilai tak hingga
+- BCE membuat gradien stabil per piksel, Dice Loss menjaga fokus pada area polip
 - makin kecil makin baik
 
-## 17. Mean Absolute Error
-
-MAE menghitung rata-rata nilai absolut selisih antara mask asli dan prediksi.
-
-Rumus:
-
-```text
-MAE = (1 / n) x sum(|Y_true - Y_pred|)
-```
-
-Keterangan:
-
-- `n` adalah jumlah piksel
-- makin kecil makin baik
-
-## 18. Loss Training
+## 17. Loss Training
 
 Pada setiap epoch, model menghitung loss dari prediksi terhadap mask asli.
 
@@ -445,7 +445,7 @@ optimizer = Adam
 learning_rate = 0.0001
 ```
 
-## 19. Validation Loss
+## 18. Validation Loss
 
 Validation loss dihitung pada data validation.
 
@@ -461,7 +461,7 @@ Fungsinya:
 mengecek apakah model hanya menghafal data train atau benar-benar belajar pola
 ```
 
-## 20. Test Metrics
+## 19. Test Metrics
 
 Setelah training selesai, model diuji pada data test.
 
@@ -492,7 +492,7 @@ metrics.json
 summary_metrics.csv
 ```
 
-## 21. Rumus Perbandingan Loss Function
+## 20. Rumus Perbandingan Loss Function
 
 Untuk setiap model, loss function dibandingkan berdasarkan metrik test.
 
@@ -502,8 +502,7 @@ Contoh tabel:
 Model   Loss      Dice    IoU
 UNet    Jaccard   ...
 UNet    Tversky   ...
-UNet    MSE       ...
-UNet    MAE       ...
+UNet    DiceBCE   ...
 ```
 
 Secara konsep:
@@ -524,7 +523,7 @@ Jika ingin memilih berdasarkan IoU:
 Best Loss = argmax(IoU)
 ```
 
-## 22. Rumus Perbandingan Model
+## 21. Rumus Perbandingan Model
 
 Model dibandingkan berdasarkan performa test.
 
@@ -557,7 +556,7 @@ Delta Dice < 0
 
 maka UNet lebih baik berdasarkan Dice.
 
-## 23. Rumus Perbandingan Dataset Generalis dan Spesialis
+## 22. Rumus Perbandingan Dataset Generalis dan Spesialis
 
 Dalam project ini:
 
@@ -604,7 +603,7 @@ Rumus yang sama bisa dipakai untuk IoU:
 Delta IoU Dataset = IoU_spesialis - IoU_generalis
 ```
 
-## 24. Output File yang Berkaitan dengan Rumus
+## 23. Output File yang Berkaitan dengan Rumus
 
 ### `history.csv`
 
@@ -667,7 +666,7 @@ test_data
 run_dir
 ```
 
-## 25. Ringkasan Alur Rumus
+## 24. Ringkasan Alur Rumus
 
 Alur dari awal sampai akhir:
 
@@ -688,7 +687,7 @@ Image asli
 -> bandingkan model, loss function, dan dataset
 ```
 
-## 26. Rumus Paling Penting untuk Laporan
+## 25. Rumus Paling Penting untuk Laporan
 
 Untuk laporan skripsi, rumus yang paling penting biasanya:
 
@@ -721,9 +720,5 @@ Tversky Loss = 1 - ((TP + smooth) / (TP + alpha x FP + beta x FN + smooth))
 ```
 
 ```text
-MSE = (1 / n) x sum((Y_true - Y_pred)^2)
-```
-
-```text
-MAE = (1 / n) x sum(|Y_true - Y_pred|)
+DiceBCE Loss = BCE + (1 - ((2 x intersection + smooth) / (sum(Y_true) + sum(Y_pred) + smooth)))
 ```
